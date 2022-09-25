@@ -1,5 +1,5 @@
 /*
-    This file is part of cpp_at.
+    This file is part of chAT.
     Copyright (C) 2022 Reimu NotMoe <reimu@sudomaker.com>
 
     This program is free software: you can redistribute it and/or modify
@@ -20,7 +20,6 @@
 
 #include <cinttypes>
 #include <cstring>
-#include <cassert>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -36,7 +35,7 @@ static void set_nonblocking(int fd) {
 }
 
 int main() {
-	chAT::service at_srv;
+	chAT::server at_srv;
 
 	std::vector<uint8_t> raw_read_buf;
 	size_t raw_read_pos = 0;
@@ -45,15 +44,15 @@ int main() {
 	at_srv.add_command({"+FOO", "fooooo",
 			    [](auto &srv, auto &parser) {
 				    static const char msg[] = "Foo in a const string. You know what? I'm not being copied.\r\n";
-				    srv.queue_write_cstr(msg, sizeof(msg)-1);
+				    srv.write_cstr(msg, sizeof(msg) - 1);
 
 				    std::string s = "Foo in a std::string\r\n";
-				    srv.queue_write(std::move(s));
+				    srv.write(std::move(s));
 
 				    static const uint8_t msg2[] = "Foo in a vector\r\n";
 				    std::vector<uint8_t> v;
 				    v.insert(v.end(), msg2, msg2+sizeof(msg2)-1);
-				    srv.queue_write(std::move(v));
+				    srv.write(std::move(v));
 
 				    return chAT::command_status::OK;
 			    }});
@@ -83,9 +82,9 @@ int main() {
 						    return chAT::command_status::OK;
 					    }
 					    case chAT::command_mode::Test: {
-						    static const char msg[] = "+RAW_READ: <len>\r\n";
-						    srv.queue_write_cstr(msg, sizeof(msg) - 1);
-						    return chAT::command_status::OK;
+						    srv.write_response_prompt();
+						    srv.write_cstr("<len>");
+						    srv.write_line_end();
 					    }
 					    default:
 						    return chAT::command_status::ERROR;
@@ -98,13 +97,19 @@ int main() {
 					    case chAT::command_mode::Read:
 					    case chAT::command_mode::Run:
 
-						    srv.queue_write_data(raw_read_buf.data(), raw_read_buf.size());
+						    srv.write_data(raw_read_buf.data(), raw_read_buf.size());
 
 						    return chAT::command_status::OK;
 
 					    default:
 						    return chAT::command_status::ERROR;
 				    }
+			    }});
+
+	at_srv.add_command({"+HELP", "Show this help",
+			    [](auto &srv, auto &cmd) {
+				    srv.write_command_list();
+				    return chAT::command_status::OK;
 			    }});
 
 	at_srv.add_command({"+EXIT", "Exit this program",
@@ -146,7 +151,7 @@ int main() {
 					} else {
 						raw_read_enabled = false;
 						at_srv.inhibit_read(false);
-						at_srv.queue_write_cstr("READ OK\r\n");
+						at_srv.write_cstr("READ OK\r\n");
 						at_srv.run();
 						break;
 					}
@@ -157,10 +162,10 @@ int main() {
 
 					printf("[run] result: %d\n", (int)rc);
 
-					if (rc == chAT::service::run_status::WantRead || rc == chAT::service::run_status::Idle) {
+					if (rc == chAT::server::run_status::WantRead || rc == chAT::server::run_status::Idle) {
 						pfds[1].events = 0;
 						break;
-					} else if (rc == chAT::service::run_status::WantWrite) {
+					} else if (rc == chAT::server::run_status::WantWrite) {
 						pfds[1].events = POLLOUT;
 						break;
 					}

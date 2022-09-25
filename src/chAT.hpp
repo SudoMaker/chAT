@@ -1,5 +1,5 @@
 /*
-    This file is part of cpp_at.
+    This file is part of chAT.
     Copyright (C) 2022 Reimu NotMoe <reimu@sudomaker.com>
 
     This program is free software: you can redistribute it and/or modify
@@ -127,8 +127,8 @@ namespace SudoMaker::chAT {
 		data_holder() = default;
 
 		template<typename T>
-		explicit data_holder(T&& v) {
-			load_container(std::forward<T>(v));
+		explicit data_holder(T v) {
+			load_container(std::move(v));
 		}
 
 		explicit data_holder(char *v, ssize_t len = -1) {
@@ -140,8 +140,8 @@ namespace SudoMaker::chAT {
 		}
 
 		template<typename T>
-		void load_container(T&& v) {
-			holder = std::make_unique<std::any>(std::forward<T>(v));
+		void load_container(T v) {
+			holder = std::make_unique<std::any>(std::move(v));
 			const T* o = std::any_cast<T>(holder.get());
 			load_data((void *)o->data(), o->size());
 		}
@@ -161,16 +161,16 @@ namespace SudoMaker::chAT {
 		OK, ERROR, CUSTOM
 	};
 
-	class service;
+	class server;
 
-	typedef std::function<command_status(service& svc, at_parser& parser)> command_callback_t;
+	typedef std::function<command_status(server& svc, at_parser& parser)> command_callback_t;
 
 	struct command {
 		std::string name, description;
 		command_callback_t callback;
 	};
 
-	class service {
+	class server {
 	protected:
 		input_buffer<128> buf_read;
 		std::deque<data_holder> buf_write;
@@ -192,32 +192,48 @@ namespace SudoMaker::chAT {
 			read_inhibited = enabled;
 		}
 
-		void queue_write_raw(data_holder d) {
+		void write_raw(data_holder d) {
 			buf_write.emplace_back(std::move(d));
 		}
 
-		void queue_write_data(const void *buf, size_t len) {
-			queue_write_raw(data_holder((void *)buf, len));
+		void write_data(const void *buf, size_t len) {
+			write_raw(data_holder((void *) buf, len));
 		}
 
-		void queue_write_cstr(const char *buf, ssize_t len = -1) {
-			queue_write_data((void *)buf, len == -1 ? strlen(buf) : len);
+		void write_cstr(const char *buf, ssize_t len = -1) {
+			write_data((void *) buf, len == -1 ? strlen(buf) : len);
 		}
 
 		template<typename T>
-		void queue_write(T&& s) {
-			queue_write_raw(data_holder(std::forward<T>(s)));
+		void write(T&& s) {
+			write_raw(data_holder(std::forward<T>(s)));
 		}
 
-		void queue_write_error() {
-			static const char str_error[] = "ERROR\r\n";
-			queue_write_raw({(void *) str_error, sizeof(str_error) - 1});
+		void write_error() {
+			static const char str[] = "ERROR\r\n";
+			write_cstr(str, sizeof(str) - 1);
 		}
 
-		void queue_write_ok() {
-			static const char str_ok[] = "OK\r\n";
-			queue_write_raw({(void *) str_ok, sizeof(str_ok) - 1});
+		void write_ok() {
+			static const char str[] = "OK\r\n";
+			write_cstr(str, sizeof(str) - 1);
 		}
+
+		void write_response_prompt() {
+			write(parser.command + ": ");
+		}
+
+		void write_error_prompt() {
+			static const char str[] = "+ERROR: ";
+			write_cstr(str, sizeof(str) - 1);
+		}
+
+		void write_line_end() {
+			static const char str[] = "\r\n";
+			write_cstr(str, sizeof(str) - 1);
+		}
+
+		void write_command_list();
 
 		void add_command(command cmd) {
 			commands.insert({cmd.name, std::move(cmd)});

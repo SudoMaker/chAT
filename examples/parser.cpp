@@ -1,5 +1,5 @@
 /*
-    This file is part of cpp_at.
+    This file is part of chAT.
     Copyright (C) 2022 Reimu NotMoe <reimu@sudomaker.com>
 
     This program is free software: you can redistribute it and/or modify

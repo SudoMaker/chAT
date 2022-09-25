@@ -1,5 +1,5 @@
 /*
-    This file is part of cpp_at.
+    This file is part of chAT.
     Copyright (C) 2022 Reimu NotMoe <reimu@sudomaker.com>
 
     This program is free software: you can redistribute it and/or modify
@@ -174,7 +174,7 @@ size_t at_parser::parse(const uint8_t *buf, size_t len) {
 	return len;
 }
 
-void service::do_parse() {
+void server::do_parse() {
 	while (true) {
 		auto ibuf_fresh_size = buf_read.fresh_size();
 
@@ -185,24 +185,24 @@ void service::do_parse() {
 
 			if (parser.state == at_parser::state::Done) {
 				if (parser.malformed) {
-					queue_write_error();
+					write_error();
 				} else {
 					if (parser.command.empty()) {
-						queue_write_ok();
+						write_ok();
 					} else {
 						auto it_c = commands.find(parser.command);
 
 						if (it_c == commands.end()) {
-							queue_write_error();
+							write_error();
 						} else {
 							auto &cmd = it_c->second;
 
 							auto rc_cmd = cmd.callback(*this, parser);
 
 							if (rc_cmd == command_status::OK) {
-								queue_write_ok();
+								write_ok();
 							} else if (rc_cmd == command_status::ERROR) {
-								queue_write_error();
+								write_error();
 							}
 						}
 					}
@@ -217,7 +217,7 @@ void service::do_parse() {
 	}
 }
 
-service::run_status service::run() {
+server::run_status server::run() {
 	// 0: nothing attempted, 1: success, 2: blocked
 	int read_state = 0, write_state = 0;
 
@@ -291,5 +291,23 @@ service::run_status service::run() {
 	} else {
 		return run_status::Working;
 	}
+}
+
+void server::write_command_list() {
+	for (auto &it: commands) {
+		static const char str[] = "+COMMAND: \"";
+		write_cstr(str, sizeof(str) - 1);
+
+		write(it.first);
+
+		static const char str2[] = "\",\"";
+		write_cstr(str2, sizeof(str2) - 1);
+
+		write(it.second.description);
+
+		static const char str3[] = "\"\r\n";
+		write_cstr(str3, sizeof(str3) - 1);
+	}
+
 }
 
