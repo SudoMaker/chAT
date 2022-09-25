@@ -199,9 +199,9 @@ void service::do_parse() {
 
 							auto rc_cmd = cmd.callback(*this, parser);
 
-							if (rc_cmd == command_result_t::OK) {
+							if (rc_cmd == command_status::OK) {
 								queue_write_ok();
-							} else if (rc_cmd == command_result_t::ERROR) {
+							} else if (rc_cmd == command_status::ERROR) {
 								queue_write_error();
 							}
 						}
@@ -217,7 +217,7 @@ void service::do_parse() {
 	}
 }
 
-service::run_result service::run() {
+service::run_status service::run() {
 	// 0: nothing attempted, 1: success, 2: blocked
 	int read_state = 0, write_state = 0;
 
@@ -281,15 +281,15 @@ service::run_result service::run() {
 	}
 
 	if (write_state == 2) {
-		return run_result::WantWrite;
+		return run_status::WantWrite;
 	} else if (read_state == 2) {
-		return run_result::WantRead;
+		return run_status::WantRead;
 	}
 
 	if (read_state == 0 && write_state == 0) {
-		return run_result::Idle;
+		return run_status::Idle;
 	} else {
-		return run_result::Working;
+		return run_status::Working;
 	}
 }
 

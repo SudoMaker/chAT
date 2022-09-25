@@ -157,13 +157,13 @@ namespace SudoMaker::chAT {
 		}
 	};
 
-	enum class command_result {
+	enum class command_status {
 		OK, ERROR, CUSTOM
 	};
 
 	class service;
 
-	typedef std::function<command_result(service& svc, at_parser& parser)> command_callback_t;
+	typedef std::function<command_status(service& svc, at_parser& parser)> command_callback_t;
 
 	struct command {
 		std::string name, description;
@@ -184,7 +184,7 @@ namespace SudoMaker::chAT {
 		std::unordered_map<std::string, command> commands;
 		bool nonblocking = false;
 
-		enum class run_result {
+		enum class run_status {
 			Idle, Working, WantRead, WantWrite
 		};
 
@@ -229,6 +229,6 @@ namespace SudoMaker::chAT {
 			}
 		}
 
-		run_result run();
+		run_status run();
 	};
 }

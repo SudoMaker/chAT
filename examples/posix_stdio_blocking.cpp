@@ -38,9 +38,18 @@ int main() {
 
 	at_srv.add_command({"+FOO", "fooooo",
 			    [](auto &srv, auto &parser) {
-				    static const char msg[] = "This is foo\r\n";
+				    static const char msg[] = "Foo in a const string. You know what? I'm not being copied.\r\n";
 				    srv.queue_write_cstr(msg, sizeof(msg)-1);
-				    return chAT::command_result_t::OK;
+
+				    std::string s = "Foo in a std::string\r\n";
+				    srv.queue_write(std::move(s));
+
+				    static const uint8_t msg2[] = "Foo in a vector\r\n";
+				    std::vector<uint8_t> v;
+				    v.insert(v.end(), msg2, msg2+sizeof(msg2)-1);
+				    srv.queue_write(std::move(v));
+
+				    return chAT::command_status::OK;
 			    }});
 
 	at_srv.add_command({"+RAW_READ", "Pause AT command parsing and read <len> bytes of data directly",
@@ -48,12 +57,12 @@ int main() {
 				    switch (parser.cmd_mode) {
 					    case chAT::command_mode::Write: {
 						    if (parser.args.size() != 1) {
-							    return chAT::command_result_t::ERROR;
+							    return chAT::command_status::ERROR;
 						    }
 
 						    auto &len_str = parser.args[0];
 						    if (len_str.empty()) {
-							    return chAT::command_result_t::ERROR;
+							    return chAT::command_status::ERROR;
 
 						    }
 
@@ -65,15 +74,15 @@ int main() {
 						    raw_read_enabled = true;
 						    srv.inhibit_read(true);
 
-						    return chAT::command_result_t::OK;
+						    return chAT::command_status::OK;
 					    }
 					    case chAT::command_mode::Test: {
 						    static const char msg[] = "+RAW_READ: <len>\r\n";
 						    srv.queue_write_cstr(msg, sizeof(msg) - 1);
-						    return chAT::command_result_t::OK;
+						    return chAT::command_status::OK;
 					    }
 					    default:
-						    return chAT::command_result_t::ERROR;
+						    return chAT::command_status::ERROR;
 				    }
 			    }});
 
@@ -85,17 +94,17 @@ int main() {
 
 						    srv.queue_write_data(raw_read_buf.data(), raw_read_buf.size());
 
-						    return chAT::command_result_t::OK;
+						    return chAT::command_status::OK;
 
 					    default:
-						    return chAT::command_result_t::ERROR;
+						    return chAT::command_status::ERROR;
 				    }
 			    }});
 
 	at_srv.add_command({"+EXIT", "Exit this program",
 			    [](auto &srv, auto &cmd) {
 				    exit(0);
-				    return chAT::command_result_t::OK;
+				    return chAT::command_status::OK;
 			    }});
 
 	at_srv.io = {
