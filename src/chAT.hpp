@@ -142,7 +142,8 @@ namespace SudoMaker::chAT {
 		template<typename T>
 		void load_container(T&& v) {
 			holder = std::make_unique<std::any>(std::forward<T>(v));
-			load_data((void *)std::any_cast<T>(*holder).data(), std::any_cast<T>(*holder).size());
+			const T* o = std::any_cast<T>(holder.get());
+			load_data((void *)o->data(), o->size());
 		}
 
 		void load_data(void *buf, size_t len) {
@@ -156,13 +157,13 @@ namespace SudoMaker::chAT {
 		}
 	};
 
-	enum class command_result_t {
+	enum class command_result {
 		OK, ERROR, CUSTOM
 	};
 
 	class service;
 
-	typedef std::function<command_result_t(service& svc, at_parser& parser)> command_callback_t;
+	typedef std::function<command_result(service& svc, at_parser& parser)> command_callback_t;
 
 	struct command {
 		std::string name, description;
