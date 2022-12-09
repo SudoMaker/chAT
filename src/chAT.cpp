@@ -36,7 +36,7 @@ void at_parser::reset() {
 }
 
 void at_parser::show() {
-	const char *mode_str = NULL;
+	const char *mode_str = nullptr;
 
 	switch (cmd_mode) {
 		case command_mode::Run:
