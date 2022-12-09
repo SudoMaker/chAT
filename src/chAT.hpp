@@ -50,6 +50,7 @@ namespace SudoMaker::chAT {
 		std::string command;
 		std::vector<std::string> args;
 		bool args_quote;
+		size_t args_escape_count;
 #ifdef CPPAT_STRICT_CRLF
 		uint8_t last_data[2];
 #endif

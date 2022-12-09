@@ -28,6 +28,7 @@ void at_parser::reset() {
 	command.clear();
 	args.clear();
 	args_quote = false;
+	args_escape_count = 0;
 #ifdef CPPAT_STRICT_CRLF
 	last_data[0] = 0;
 	last_data[1] = 0;
@@ -146,20 +147,32 @@ size_t at_parser::parse(const uint8_t *buf, size_t len) {
 			}
 
 			case state::Argument: {
-				switch (c) {
-					case '"':
-						args_quote = !args_quote;
-						break;
-					case ',':
-						args.emplace_back();
-						break;
-					case '\r':
-					case '\n':
-						break;
-					default:
-						auto &cur_arg = args.back();
-						cur_arg.push_back((char) c);
-						break;
+				auto &cur_arg = args.back();
+				if (args_escape_count) {
+					cur_arg.push_back((char)c);
+					args_escape_count--;
+				} else {
+					switch (c) {
+						case '\\':
+							args_escape_count++;
+							break;
+						case '"':
+							args_quote = !args_quote;
+							break;
+						case ',':
+							if (args_quote) {
+								cur_arg.push_back(',');
+							} else {
+								args.emplace_back();
+							}
+							break;
+						case '\r':
+						case '\n':
+							break;
+						default:
+							cur_arg.push_back((char)c);
+							break;
+					}
 				}
 				break;
 			}
