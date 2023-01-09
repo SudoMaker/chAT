@@ -188,7 +188,7 @@ size_t at_parser::parse(const uint8_t *buf, size_t len) {
 }
 
 void server::do_parse() {
-	while (true) {
+	while (!read_inhibited) {
 		auto ibuf_fresh_size = buf_read.fresh_size();
 
 		if (ibuf_fresh_size) {
@@ -235,32 +235,31 @@ server::run_status server::run() {
 	int read_state = 0, write_state = 0;
 
 	// Step 1: Read
-	if (!read_inhibited) {
-		while (true) {
-			auto ibuf_left = buf_read.left();
+	while (!read_inhibited) {
+		auto ibuf_left = buf_read.left();
 
-			if (ibuf_left) {
-				ssize_t rc_read = io.callback_io_read(buf_read.fresh_end(), ibuf_left);
+		if (ibuf_left) {
+			ssize_t rc_read = io.callback_io_read(buf_read.fresh_end(), ibuf_left);
 
-				if (rc_read > 0) {
-					read_state = 1;
-					buf_read.usage() += rc_read;
+			if (rc_read > 0) {
+				read_state = 1;
+				buf_read.usage() += rc_read;
 
-					if (!nonblocking) {
-						do_parse();
-						break;
-					}
-				} else {
-					if (read_state == 0) {
-						read_state = 2;
-					}
+				if (!nonblocking) {
+					do_parse();
 					break;
 				}
 			} else {
+				if (read_state == 0) {
+					read_state = 2;
+				}
 				break;
 			}
+		} else {
+			break;
 		}
 	}
+
 
 	// Step 2: Parse
 	do_parse();

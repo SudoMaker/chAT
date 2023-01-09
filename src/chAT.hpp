@@ -189,6 +189,10 @@ namespace SudoMaker::chAT {
 			Idle, Working, WantRead, WantWrite
 		};
 
+		auto &read_buffer() const noexcept {
+			return buf_read;
+		}
+
 		void inhibit_read(bool enabled) noexcept {
 			read_inhibited = enabled;
 		}
