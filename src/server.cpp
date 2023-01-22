@@ -312,15 +312,19 @@ namespace SudoMaker::chAT {
 		pimpl->io = std::move(io_cbs);
 	}
 
-	void Server::set_nonblocking_mode(bool v) {
+	const io_interface &Server::get_io_callback() noexcept {
+		return pimpl->io;
+	}
+
+	void Server::set_nonblocking_mode(bool v) noexcept {
 		pimpl->nonblocking = v;
 	}
 
-	void Server::set_parser_debugging(bool v) {
+	void Server::set_parser_debugging(bool v) noexcept {
 		pimpl->parser_debug = v;
 	}
 
-	void Server::set_write_buffer_size_limit(size_t l) {
+	void Server::set_write_buffer_size_limit(size_t l) noexcept {
 		pimpl->buf_write_len_limit = l;
 	}
 

@@ -92,9 +92,10 @@ namespace SudoMaker::chAT {
 
 		void set_command_callback(command_callback_t cmd_cb);
 		void set_io_callback(io_interface io_cbs);
-		void set_nonblocking_mode(bool v);
-		void set_parser_debugging(bool v);
-		void set_write_buffer_size_limit(size_t l = 16384);
+		const io_interface& get_io_callback() noexcept;
+		void set_nonblocking_mode(bool v) noexcept;
+		void set_parser_debugging(bool v) noexcept;
+		void set_write_buffer_size_limit(size_t l = 16384) noexcept;
 
 		std::vector<uint8_t> inhibit_read(size_t raw_data_len);
 		void continue_read() noexcept;
