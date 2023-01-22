@@ -7,11 +7,18 @@ file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.*")
 add_library(chAT ${SOURCES})
 target_include_directories(chAT PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-add_executable(chAT_example_parser examples/parser.cpp)
-target_link_libraries(chAT_example_parser chAT)
+set(chAT_LIBRARY_ONLY OFF CACHE BOOL "Only build library")
 
-add_executable(chAT_example_posix_stdio_blocking examples/posix_stdio_blocking.cpp)
-target_link_libraries(chAT_example_posix_stdio_blocking chAT)
+if (NOT chAT_LIBRARY_ONLY)
+    add_executable(chAT_example_parser examples/parser.cpp)
+    target_link_libraries(chAT_example_parser chAT)
 
-add_executable(chAT_example_posix_stdio_nonblocking examples/posix_stdio_nonblocking.cpp)
-target_link_libraries(chAT_example_posix_stdio_nonblocking chAT)
+    add_executable(chAT_example_posix_stdio_blocking examples/posix_stdio_blocking.cpp)
+    target_link_libraries(chAT_example_posix_stdio_blocking chAT)
+
+    add_executable(chAT_example_posix_stdio_nonblocking examples/posix_stdio_nonblocking.cpp)
+    target_link_libraries(chAT_example_posix_stdio_nonblocking chAT)
+
+    enable_testing()
+    add_test(NAME chAT_example_parser COMMAND chAT_example_parser)
+endif()
