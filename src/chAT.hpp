@@ -36,7 +36,6 @@ namespace SudoMaker::chAT {
 		Run, Write, Read, Test
 	};
 
-
 	class ATParser {
 	public:
 		enum class ParseState : unsigned int {
@@ -82,7 +81,7 @@ namespace SudoMaker::chAT {
 	private:
 		std::unique_ptr<ServerImpl> pimpl;
 	public:
-		enum RunStatus {
+		enum RunStatus : unsigned {
 			OK = 0, WantRead = 0x1, WantWrite = 0x2,
 		};
 
@@ -117,11 +116,11 @@ namespace SudoMaker::chAT {
 	};
 
 	inline Server::RunStatus operator|(Server::RunStatus a, Server::RunStatus b) {
-		return static_cast<Server::RunStatus>(static_cast<int>(a) | static_cast<int>(b));
+		return static_cast<Server::RunStatus>(static_cast<unsigned>(a) | static_cast<unsigned>(b));
 	}
 
 	inline Server::RunStatus operator&(Server::RunStatus a, Server::RunStatus b) {
-		return static_cast<Server::RunStatus>(static_cast<int>(a) & static_cast<int>(b));
+		return static_cast<Server::RunStatus>(static_cast<unsigned>(a) & static_cast<unsigned>(b));
 	}
 
 	inline Server::RunStatus& operator|=(Server::RunStatus& a, Server::RunStatus b) {
