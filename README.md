@@ -1,5 +1,7 @@
 # chAT
 
+[![CMake](https://github.com/SudoMaker/chAT/actions/workflows/cmake.yml/badge.svg)](https://github.com/SudoMaker/chAT/actions/workflows/cmake.yml)
+
 [AT command](https://en.wikipedia.org/wiki/Hayes_command_set) server written in C++.
 
 ## Features
