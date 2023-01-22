@@ -104,8 +104,10 @@ namespace SudoMaker::chAT {
 		void write_vec8(std::vector<uint8_t> vec8);
 
 		void write_response(std::string str);
-		void write_error();
+		void write_response(const char *buf, ssize_t len = -1);
 		void write_error_reason(std::string str);
+		void write_error_reason(const char *buf, ssize_t len = -1);
+		void write_error();
 		void write_ok();
 
 		void write_response_prompt();

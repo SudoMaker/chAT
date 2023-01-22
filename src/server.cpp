@@ -341,6 +341,12 @@ namespace SudoMaker::chAT {
 		write_line_end();
 	}
 
+	void Server::write_response(const char *buf, ssize_t len) {
+		write_response_prompt();
+		write_cstr(buf, len);
+		write_line_end();
+	}
+
 	void Server::write_error() {
 		return pimpl->write_error();
 	}
@@ -348,6 +354,12 @@ namespace SudoMaker::chAT {
 	void Server::write_error_reason(std::string str) {
 		write_error_prompt();
 		write_str(std::move(str));
+		write_line_end();
+	}
+
+	void Server::write_error_reason(const char *buf, ssize_t len) {
+		write_error_prompt();
+		write_cstr(buf, len);
 		write_line_end();
 	}
 
