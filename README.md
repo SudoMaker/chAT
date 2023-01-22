@@ -1,6 +1,6 @@
 # chAT
 
-AT command server written in C++
+[AT command](https://en.wikipedia.org/wiki/Hayes_command_set) server written in C++.
 
 ## Features
 - Written in standard C++17
@@ -13,7 +13,7 @@ AT command server written in C++
 The French word "chat" is "cat" in English.
 
 ## Design principles
-- Prefer usability and speed over low RAM usage 
+- Prefer usability and speed over low RAM usage
 - No strict syntax checking and man-made limitations
 - Does not assume anything: Max flexibility
 
@@ -37,6 +37,47 @@ using namespace SudoMaker;
 ### Creating a server
 ```c++
 chAT::Server at_srv;
+```
+
+### Knowing the types of AT command
+#### Run
+```
+>> AT+FOO\r\n
+<< OK\r\n
+```
+
+#### Read
+```
+>> AT+FOO?\r\n
+<< +FOO: 123\r\n
+<< OK\r\n
+```
+#### Write
+```
+>> AT+FOO=456\r\n
+<< OK\r\n
+```
+
+#### Test
+```
+>> AT+FOO=?\r\n
+<< +FOO: <number>
+<< OK\r\n
+```
+
+#### Unsolicited
+```
+<< +ALARM: "Your cat ate a rat"\r\n
+```
+Be aware that they can appear at anywhere. Like:
+```
+>> AT+FOO?\r\n
+<< +ALARM: "Your cat scratched your curtain"\r\n
+<< +FOO: 123\r\n
+<< +ALARM: "Your cat destroyed your vase"\r\n
+<< +ALARM: "Your cat opened your fridge"\r\n
+<< OK\r\n
+<< +ALARM: "Your cat ate your salmon"\r\n
 ```
 
 ### Install command handler
@@ -149,6 +190,28 @@ if (rc & RunStatus::WantRead) {
 if (rc & RunStatus::WantWrite) {
 	// Enable OUT event
 }
+```
+
+### Using the inhibit mode
+```c++
+// Assume we need to read 128 bytes of raw data from the I/O medium.
+
+// Since the server doesn't read one byte at a time (which is slow as hell),
+// some data can be already buffered by the server, so we pull them out at first.
+
+// Inhibit server read and pull out at most 128 bytes of data from server buffer
+auto raw_data = at_srv.inhibit_read(128);  // type: std::vector<uint8_t>
+
+// Then, 'raw_data' contains 0~128 bytes of data,
+// and the server won't initiate any more read operations.
+// Now it's up to the user to read the remaining data from the operating system.
+
+// After it's done, call
+at_srv.continue_read();
+// to continue normal operation.
+
+// Note that the write operations are not affected.
+// You can always utilize the server to arrange binary data writes.
 ```
 
 ## Examples
