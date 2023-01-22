@@ -1,6 +1,6 @@
 /*
     This file is part of chAT.
-    Copyright (C) 2022 Reimu NotMoe <reimu@sudomaker.com>
+    Copyright (C) 2022-2023 Reimu NotMoe <reimu@sudomaker.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,111 +30,116 @@
 using namespace SudoMaker;
 
 int main() {
-	chAT::server at_srv;
+	puts("Starting chAT server");
+
+	chAT::Server at_srv;
+
+	bool need_exit = false;
 
 	std::vector<uint8_t> raw_read_buf;
 	size_t raw_read_pos = 0;
 	bool raw_read_enabled = false;
 
-	at_srv.add_command({"+FOO", "fooooo",
-			    [](auto &srv, auto &parser) {
-				    static const char msg[] = "Foo in a const string. You know what? I'm not being copied.\r\n";
-				    srv.write_cstr(msg, sizeof(msg) - 1);
+	std::unordered_map<std::string, std::function<chAT::CommandStatus(chAT::Server&, chAT::ATParser&)>> command_table = {
+		{"+FOO",[](auto &srv, auto &parser) {
+			static const char msg[] = "I'm a const c-style string. I'm not being copied.\r\n";
+			srv.write_cstr(msg, sizeof(msg) - 1);
 
-				    std::string s = "Foo in a std::string\r\n";
-				    srv.write(std::move(s));
+			std::string s = "I'm a std::string. I'm not being copied after construction.\r\n";
+			srv.write_str(std::move(s));
 
-				    static const uint8_t msg2[] = "Foo in a vector\r\n";
-				    std::vector<uint8_t> v;
-				    v.insert(v.end(), msg2, msg2+sizeof(msg2)-1);
-				    srv.write(std::move(v));
+			static const uint8_t msg2[] = "I'm a vector. I'm not being copied after construction.\r\n";
+			std::vector<uint8_t> v;
+			v.insert(v.end(), msg2, msg2+sizeof(msg2)-1);
+			srv.write_vec8(std::move(v));
 
-				    return chAT::command_status::OK;
-			    }});
+			return chAT::CommandStatus::OK;
+		}},
+		{"+RAWREAD",[&](auto &srv, auto &parser) {
+			switch (parser.cmd_mode) {
+				case chAT::CommandMode::Write: {
+					if (parser.args.size() != 1) {
+						return chAT::CommandStatus::ERROR;
+					}
 
-	at_srv.add_command({"+RAW_READ", "Pause AT command parsing and read <len> bytes of data directly",
-			    [&](auto &srv, auto &parser) {
-				    switch (parser.cmd_mode) {
-					    case chAT::command_mode::Write: {
-						    if (parser.args.size() != 1) {
-							    return chAT::command_status::ERROR;
-						    }
+					auto &len_str = parser.args[0];
+					if (len_str.empty()) {
+						return chAT::CommandStatus::ERROR;
 
-						    auto &len_str = parser.args[0];
-						    if (len_str.empty()) {
-							    return chAT::command_status::ERROR;
+					}
 
-						    }
+					size_t len = std::stoi(len_str);
 
-						    size_t len = std::stoi(len_str);
+					raw_read_buf = srv.inhibit_read(len);
+					raw_read_pos = raw_read_buf.size();
 
-						    raw_read_buf.resize(len);
-						    raw_read_pos = 0;
+					raw_read_buf.resize(len);
 
-						    raw_read_enabled = true;
-						    srv.inhibit_read(true);
+					raw_read_enabled = true;
 
-						    return chAT::command_status::OK;
-					    }
-					    case chAT::command_mode::Test: {
-						    srv.write_response_prompt();
-						    srv.write_cstr("<len>");
-						    srv.write_line_end();
-						    return chAT::command_status::OK;
-					    }
-					    default:
-						    return chAT::command_status::ERROR;
-				    }
-			    }});
-
-	at_srv.add_command({"+RAW_SHOW", "Output the raw data read earlier",
-			    [&](auto &srv, auto &parser) {
-				    switch (parser.cmd_mode) {
-					    case chAT::command_mode::Read:
-					    case chAT::command_mode::Run:
-
-						    srv.write_data(raw_read_buf.data(), raw_read_buf.size());
-
-						    return chAT::command_status::OK;
-
-					    default:
-						    return chAT::command_status::ERROR;
-				    }
-			    }});
-
-	at_srv.add_command({"+HELP", "Show this help",
-			    [](auto &srv, auto &cmd) {
-				    srv.write_command_list();
-				    return chAT::command_status::OK;
-			    }});
-
-	at_srv.add_command({"+EXIT", "Exit this program",
-			    [](auto &srv, auto &cmd) {
-				    exit(0);
-				    return chAT::command_status::OK;
-			    }});
-
-	at_srv.io = {
-		.callback_io_read = [](auto buf, auto len){return read(STDIN_FILENO, buf, len);},
-		.callback_io_write = [](auto buf, auto len){return write(STDOUT_FILENO, buf, len);},
+					return chAT::CommandStatus::CUSTOM;
+				}
+				case chAT::CommandMode::Test: {
+					srv.write_response_prompt();
+					srv.write_cstr("<len>");
+					srv.write_line_end();
+					return chAT::CommandStatus::OK;
+				}
+				default:
+					return chAT::CommandStatus::ERROR;
+			}
+		}},
+		{"+RAWSHOW",[&](auto &srv, auto &parser) {
+			switch (parser.cmd_mode) {
+				case chAT::CommandMode::Run:
+					srv.write_vec8(std::move(raw_read_buf));
+					return chAT::CommandStatus::OK;
+				default:
+					return chAT::CommandStatus::ERROR;
+			}
+		}},
+		{"+EXIT",[&need_exit](auto &srv, auto &cmd) {
+			need_exit = true;
+			return chAT::CommandStatus::OK;
+		}}
 	};
 
-	puts("Starting AT server");
+	at_srv.set_io_callback({
+				       .callback_io_read = [](auto buf, auto len){return read(STDIN_FILENO, buf, len);},
+				       .callback_io_write = [](auto buf, auto len){return write(STDOUT_FILENO, buf, len);},
+			       });
+
+	at_srv.set_command_callback([&](chAT::Server& srv, const std::string& command){
+		auto it = command_table.find(command);
+
+		if (it == command_table.end()) {
+			return chAT::CommandStatus::ERROR;
+		} else {
+			return it->second(srv, srv.parser());
+		}
+	});
+
+	puts("READY");
 
 	while (1) {
 		if (raw_read_enabled) {
+			puts("Raw read enabled");
 			while (raw_read_pos < raw_read_buf.size()) {
 				ssize_t rc_read = read(STDIN_FILENO, raw_read_buf.data() + raw_read_pos, raw_read_buf.size() - raw_read_pos);
 				assert(rc_read > 0);
 
 				raw_read_pos += rc_read;
 			}
-
 			raw_read_enabled = false;
-			at_srv.inhibit_read(false);
-			printf("READ OK\r\n");
-		} else {
-			at_srv.run();
+			at_srv.continue_read();
+			at_srv.write_ok();
+			puts("Raw read done");
+		}
+
+		at_srv.run();
+
+		if (need_exit) {
+			exit(0);
 		}
 	}
 

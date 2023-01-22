@@ -1,6 +1,6 @@
 /*
     This file is part of chAT.
-    Copyright (C) 2022 Reimu NotMoe <reimu@sudomaker.com>
+    Copyright (C) 2022-2023 Reimu NotMoe <reimu@sudomaker.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,7 +24,7 @@
 using namespace SudoMaker;
 
 int main() {
-	chAT::at_parser p;
+	chAT::ATParser p;
 
 	auto test = [&](const char *s){
 		printf("\n[test] Start\n\n");

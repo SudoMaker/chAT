@@ -1,6 +1,6 @@
 /*
     This file is part of chAT.
-    Copyright (C) 2022 Reimu NotMoe <reimu@sudomaker.com>
+    Copyright (C) 2022-2023 Reimu NotMoe <reimu@sudomaker.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <any>
 #include <tuple>
 #include <variant>
 #include <vector>
@@ -33,32 +32,31 @@
 #include <cinttypes>
 
 namespace SudoMaker::chAT {
-	enum class command_mode : unsigned int {
+	enum class CommandMode : unsigned int {
 		Run, Write, Read, Test
 	};
 
-	class at_parser {
+
+	class ATParser {
 	public:
-		enum class state : unsigned int {
+		enum class ParseState : unsigned int {
 			Keyword, Command, Argument, Done, Malformed
 		};
 
 		bool malformed;
-		state state;
-		command_mode cmd_mode;
+		ParseState state;
+		CommandMode cmd_mode;
 		size_t keyword_count;
 		std::string command;
 		std::vector<std::string> args;
 		bool args_quote;
 		size_t args_escape_count;
-#ifdef CPPAT_STRICT_CRLF
+#ifdef CHAT_STRICT_CRLF
 		uint8_t last_data[2];
 #endif
 		size_t bytes_parsed;
 
-		at_parser() {
-			reset();
-		}
+		ATParser();
 
 		void reset();
 		void show();
@@ -71,185 +69,68 @@ namespace SudoMaker::chAT {
 		io_callback_t callback_io_read, callback_io_write;
 	};
 
-	template<size_t S>
-	class input_buffer {
-	protected:
-		mutable uint8_t data_[S];
-		size_t usage_ = 0, position_ = 0;
-
-	public:
-		void reset() noexcept {
-			usage_ = position_ = 0;
-		}
-
-		void reset_if_done() noexcept {
-			if (usage_ == position_) {
-				reset();
-			}
-		}
-
-		[[nodiscard]] uint8_t *data() const noexcept {
-			return data_;
-		}
-
-		[[nodiscard]] size_t fresh_size() const noexcept {
-			return usage_ - position_;
-		}
-
-		[[nodiscard]] uint8_t *fresh_begin() const noexcept {
-			return data_ + position_;
-		}
-
-		[[nodiscard]] uint8_t *fresh_end() const noexcept {
-			return data_ + usage_;
-		}
-
-		[[nodiscard]] size_t& usage() noexcept {
-			return usage_;
-		}
-
-		[[nodiscard]] size_t& position() noexcept {
-			return position_;
-		}
-
-		[[nodiscard]] size_t left() const noexcept {
-			return S - usage_;
-		}
-
-
-	};
-
-	struct data_holder {
-		uint8_t *data;
-		size_t position, size;
-
-		std::unique_ptr<std::any> holder;
-
-		data_holder() = default;
-
-		template<typename T>
-		explicit data_holder(T v) {
-			load_container(std::move(v));
-		}
-
-		explicit data_holder(char *v, ssize_t len = -1) {
-			load_cstring(v, len);
-		}
-
-		data_holder(void *buf, size_t len) {
-			load_data(buf, len);
-		}
-
-		template<typename T>
-		void load_container(T v) {
-			holder = std::make_unique<std::any>(std::move(v));
-			const T* o = std::any_cast<T>(holder.get());
-			load_data((void *)o->data(), o->size());
-		}
-
-		void load_data(void *buf, size_t len) {
-			data = static_cast<uint8_t *>(buf);
-			size = len;
-			position = 0;
-		}
-
-		void load_cstring(char *s, ssize_t len = -1) {
-			load_data(s, len == -1 ? strlen(s) : len);
-		}
-	};
-
-	enum class command_status {
+	enum class CommandStatus {
 		OK, ERROR, CUSTOM
 	};
 
-	class server;
+	class Server;
+	class ServerImpl;
 
-	typedef std::function<command_status(server& svc, at_parser& parser)> command_callback_t;
+	typedef std::function<CommandStatus(Server& srv, const std::string& command)> command_callback_t;
 
-	struct command {
-		std::string name, description;
-		command_callback_t callback;
-	};
-
-	class server {
-	protected:
-		input_buffer<128> buf_read;
-		std::deque<data_holder> buf_write;
-
-		bool read_inhibited = false;
-
-		void do_parse();
+	class Server {
+	private:
+		std::unique_ptr<ServerImpl> pimpl;
 	public:
-		io_interface io;
-		at_parser parser;
-		std::unordered_map<std::string, command> commands;
-		bool nonblocking = false;
-
-		enum class run_status {
-			Idle, Working, WantRead, WantWrite
+		enum RunStatus {
+			OK = 0, WantRead = 0x1, WantWrite = 0x2,
 		};
 
-		auto &read_buffer() const noexcept {
-			return buf_read;
-		}
+		Server();
+		~Server();
 
-		void inhibit_read(bool enabled) noexcept {
-			read_inhibited = enabled;
-		}
+		ATParser &parser() noexcept;
 
-		void write_raw(data_holder d) {
-			buf_write.emplace_back(std::move(d));
-		}
+		void set_command_callback(command_callback_t cmd_cb);
+		void set_io_callback(io_interface io_cbs);
+		void set_nonblocking_mode(bool v);
+		void set_parser_debugging(bool v);
 
-		void write_data(const void *buf, size_t len) {
-			write_raw(data_holder((void *) buf, len));
-		}
+		std::vector<uint8_t> inhibit_read(size_t raw_data_len);
+		void continue_read() noexcept;
 
-		void write_cstr(const char *buf, ssize_t len = -1) {
-			write_data((void *) buf, len == -1 ? strlen(buf) : len);
-		}
+		void write_data(const void *buf, size_t len);
+		void write_cstr(const char *buf, ssize_t len = -1);
+		void write_str(std::string str);
+		void write_vec8(std::vector<uint8_t> vec8);
 
-		template<typename T>
-		void write(T&& s) {
-			write_raw(data_holder(std::forward<T>(s)));
-		}
+		void write_response(std::string str);
+		void write_error();
+		void write_error_reason(std::string str);
+		void write_ok();
 
-		void write_error() {
-			static const char str[] = "ERROR\r\n";
-			write_cstr(str, sizeof(str) - 1);
-		}
+		void write_response_prompt();
+		void write_error_prompt();
+		void write_line_end();
 
-		void write_ok() {
-			static const char str[] = "OK\r\n";
-			write_cstr(str, sizeof(str) - 1);
-		}
-
-		void write_response_prompt() {
-			write(parser.command + ": ");
-		}
-
-		void write_error_prompt() {
-			static const char str[] = "+ERROR: ";
-			write_cstr(str, sizeof(str) - 1);
-		}
-
-		void write_line_end() {
-			static const char str[] = "\r\n";
-			write_cstr(str, sizeof(str) - 1);
-		}
-
-		void write_command_list();
-
-		void add_command(command cmd) {
-			commands.insert({cmd.name, std::move(cmd)});
-		}
-
-		void add_commands(std::initializer_list<command> cmds) {
-			for (auto &cmd: cmds) {
-				commands.insert({cmd.name, cmd});
-			}
-		}
-
-		run_status run();
+		RunStatus run();
 	};
+
+	inline Server::RunStatus operator|(Server::RunStatus a, Server::RunStatus b) {
+		return static_cast<Server::RunStatus>(static_cast<int>(a) | static_cast<int>(b));
+	}
+
+	inline Server::RunStatus operator&(Server::RunStatus a, Server::RunStatus b) {
+		return static_cast<Server::RunStatus>(static_cast<int>(a) & static_cast<int>(b));
+	}
+
+	inline Server::RunStatus& operator|=(Server::RunStatus& a, Server::RunStatus b) {
+		a = a | b;
+		return a;
+	}
+
+	inline Server::RunStatus& operator&=(Server::RunStatus& a, Server::RunStatus b) {
+		a = a & b;
+		return a;
+	}
 }
