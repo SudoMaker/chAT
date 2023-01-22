@@ -77,8 +77,10 @@ namespace SudoMaker::chAT {
 	public:
 		Server *pintf;
 		io_interface io;
-		input_buffer<128> buf_read;
+		input_buffer<1024> buf_read;
 		std::deque<data_holder> buf_write;
+		size_t buf_write_len = 0;
+		size_t buf_write_len_limit = 16384;
 		command_callback_t cmd_cb;
 		bool read_inhibited = false;
 		bool nonblocking = false;
@@ -124,6 +126,16 @@ namespace SudoMaker::chAT {
 		}
 
 		void write_raw(data_holder d) {
+			while (buf_write_len + d.size > buf_write_len_limit) {
+				if (buf_write.empty()) {
+					return;
+				} else {
+					buf_write_len -= buf_write.front().size;
+					buf_write.pop_front();
+				}
+			}
+
+			buf_write_len += d.size;
 			buf_write.emplace_back(std::move(d));
 		}
 
@@ -250,6 +262,7 @@ namespace SudoMaker::chAT {
 							write_state = 1;
 							last_data.position += rc_write;
 							if (last_data.position == last_data.size) {
+								buf_write_len -= last_data.size;
 								buf_write.pop_front();
 							}
 						} else {
@@ -305,6 +318,10 @@ namespace SudoMaker::chAT {
 
 	void Server::set_parser_debugging(bool v) {
 		pimpl->parser_debug = v;
+	}
+
+	void Server::set_write_buffer_size_limit(size_t l) {
+		pimpl->buf_write_len_limit = l;
 	}
 
 	Server::RunStatus Server::run() {

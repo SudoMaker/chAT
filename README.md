@@ -216,6 +216,20 @@ at_srv.continue_read();
 // You can always utilize the server to arrange binary data writes.
 ```
 
+### Read buffer size limit
+Currently, it's hardcoded to 1024 bytes. It's 2 times of the maximum endpoint size of USB2.0.
+
+### Write buffer size limit
+The default limit is 16384 bytes. Use the following to change it:
+```c++
+at_srv.set_write_buffer_size_limit(1024);
+```
+
+When the buffer is full, the oldest data will be discarded.
+
+If you attempt to put in a chunk of data larger than the buffer (e.g. `write_vec8(large_vector)`), it will cause everything in the buffer to be discarded.
+
+
 ## Examples
 See the `examples` directory.
 
