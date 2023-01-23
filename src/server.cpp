@@ -70,7 +70,32 @@ namespace SudoMaker::chAT {
 		uint8_t *data;
 		size_t size, position;
 
-		std::variant<std::string, std::vector<uint8_t>> holder;
+		std::optional<std::variant<std::string, std::vector<uint8_t>>> holder;
+
+		auto& as_str() {
+			return std::get<std::string>(holder.value());
+		}
+
+		auto& as_vec8() {
+			return std::get<std::vector<uint8_t>>(holder.value());
+		}
+
+		void resolve_holder() {
+			if (holder.has_value()) {
+				switch (holder.value().index()) {
+					case 0:
+						data = (uint8_t *) as_str().data();
+						size = as_str().size();
+						break;
+					case 1:
+						data = as_vec8().data();
+						size = as_vec8().size();
+						break;
+					default:
+						break;
+				}
+			}
+		}
 	};
 
 	class ServerImpl {
@@ -135,8 +160,9 @@ namespace SudoMaker::chAT {
 				}
 			}
 
-			buf_write_len += d.size;
-			buf_write.emplace_back(std::move(d));
+			auto &nd = buf_write.emplace_back(std::move(d));
+			nd.resolve_holder();
+			buf_write_len += nd.size;
 		}
 
 		std::vector<uint8_t> inhibit_read(size_t raw_data_len) {
@@ -169,21 +195,17 @@ namespace SudoMaker::chAT {
 		}
 
 		void write_str(std::string str) {
-			data_holder d;
-			d.holder = std::move(str);
-			d.size = std::get<std::string>(d.holder).size();
-			d.data = (uint8_t *) std::get<std::string>(d.holder).data();
-			d.position = 0;
-			write_raw(std::move(d));
+			write_raw(data_holder{
+				.position = 0,
+				.holder = std::move(str),
+			});
 		}
 
 		void write_vec8(std::vector<uint8_t> vec8) {
-			data_holder d;
-			d.holder = std::move(vec8);
-			d.size = std::get<std::vector<uint8_t>>(d.holder).size();
-			d.data = (uint8_t *) std::get<std::vector<uint8_t>>(d.holder).data();
-			d.position = 0;
-			write_raw(std::move(d));
+			write_raw(data_holder{
+				.position = 0,
+				.holder = std::move(vec8),
+			});
 		}
 
 		void write_error() {
