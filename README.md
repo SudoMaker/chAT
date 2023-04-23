@@ -86,7 +86,7 @@ Be aware that they can appear at anywhere. Like:
 ```c++
 at_srv.set_command_callback([](chAT::Server& srv, const std::string& command) {
 	auto &parser = srv.parser();        // type: chAT::ATParser&
-	auto cmd_mode = parser.cmd_mode;    // type: chAT::CommandStatus
+	auto cmd_mode = parser.cmd_mode;    // type: chAT::CommandMode
 	auto &argv = parser.args;           // type: std::vector<std::string>&
 	auto argc = argv.size();            // type: size_t
 	
