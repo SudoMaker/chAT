@@ -196,6 +196,7 @@ namespace SudoMaker::chAT {
 
 		void write_str(std::string str) {
 			write_raw(data_holder{
+				.size = str.size(),
 				.position = 0,
 				.holder = std::move(str),
 			});
